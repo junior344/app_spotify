@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+        "target": "ES2023",
+        "module": "ES2022",
+        "rootDir": "./",
+        "strict": true,
+        "esModuleInterop": true,
+        "moduleResolution": "node",
+        "resolveJsonModule": true,
+        "allowSyntheticDefaultImports": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "allowArbitraryExtensions": true,
+    },
+    // "include": ["src/**/*", "frontend_app/src/**/*"]
+   
+}
