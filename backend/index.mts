@@ -1,11 +1,40 @@
 import express from 'express';
 import AppRoutes from './routes/routes.mjs';
 import SpotifyWebApi from 'spotify-web-api-node';
-import { Request, Response } from 'express';
+import fileUpload from 'express-fileupload';
+import { Request, Response, NextFunction } from 'express';
+import dotenv from 'dotenv';
+import session from 'express-session';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
+
+dotenv.config({ path: './.env' });
+dotenv.config();
+
+console.log('SESSION_SECRET:', process.env.SESSION_SECRET);
+interface CustomRequest extends Request {
+  session: session.Session & Partial<session.SessionData> & {
+    access_token?: string;
+  };
+}
+
 const port = 3000;
 const app = express();
+
+
+app.use(express.urlencoded({ extended: true })); //
+app.use(express.json());
+app.use(fileUpload());
+app.use(express.static('public'));
+app.set('trust proxy', 1) // trust first proxy
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'default-secret' as string,
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: process.env.NODE_ENV === 'production' }
+}))
+
 
 // Obtenir le chemin du fichier courant
 const __filename = fileURLToPath(import.meta.url);
@@ -14,22 +43,15 @@ const __dirname = path.dirname(__filename);
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-const router = express.Router();
+// Middleware pour servir les fichiers statiques
 const spotifyApi = new SpotifyWebApi({
-  clientId: 'your-client-id',
-  clientSecret: 'your-client-secret',
-  redirectUri: 'http://localhost:3000/callback'
-});
-
+    clientId: process.env.CLIENT_ID,
+    clientSecret: process.env.CLIENT_SECRET,
+    redirectUri: process.env.REDIRECT_URI,
+  });
+ 
 // Middleware pour s'assurer que l'utilisateur est authentifié
-router.use((req, res, next) => {
-  if (!spotifyApi.getAccessToken()) {
-    return  res.redirect('/index');
-  }
-  next();
-});
-
-app.get('/', (req:Request, res:Response) => {
+app.get('/',(req:Request, res:Response) => {
     res.redirect('/index');
 })
 

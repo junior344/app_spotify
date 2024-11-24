@@ -1,66 +1,76 @@
 import fs from 'fs';
 import path from 'path';
 import SpotifyWebApi from 'spotify-web-api-node';
-import{ Request, Response } from 'express';
-import  scopes  from '../model/model.mjs';
+import session from 'express-session';
+import dotenv from 'dotenv';
+import { Request, Response, NextFunction } from 'express';
+import { SessionData } from 'express-session';
+
+interface CustomRequest extends Request {
+  session: session.Session & Partial<session.SessionData> & {
+    access_token?: string;
+    refresh_token?: string;
+    state?: string;
+  };
+}
+
+import scopes from '../model/model.mjs';
 import { fileURLToPath } from 'url';
 
+dotenv.config();
+
 const spotifyApi = new SpotifyWebApi({
-  clientId: '77a9d98ed0964e99819d30803fa44e75',
-  clientSecret: 'e1e1bbd60a94411eb9e733a807b27c4f',
-  redirectUri: 'http://localhost:3000/callback'
+  clientId: process.env.CLIENT_ID,
+  clientSecret: process.env.CLIENT_SECRET,
+  redirectUri: process.env.REDIRECT_URI,
 });
 interface AlbumPlayCount {
   album: SpotifyApi.AlbumObjectSimplified;
   count: number;
 }
-export const loginController = (async (req:Request, res:Response) => {
-    console.log('Login request received');
-    const state = 'some-state-of-my-choice'; // You can generate a random state string here
-    const authorizeURL = spotifyApi.createAuthorizeURL(scopes, state);
-    res.redirect(authorizeURL);
+export const loginController = (async (req: Request, res: Response) => {
+  console.log('Login request received');
+  const state = 'some-state-of-my-choice'; // You can generate a random state string here
+  const authorizeURL = spotifyApi.createAuthorizeURL(scopes, state);
+  res.redirect(authorizeURL);
 });
 
-export const accessToken = (async (req:Request, res:Response) => {
-    const code = req.query.code as string;
-    const error = req.query.error;
-  
-    if (error) {
-      console.error('Error:', error);
-      res.redirect('/error.html'); // Redirige vers une page d'erreur (optionnel)
-      return;
-    }
-    try {
-      const data = await spotifyApi.authorizationCodeGrant(code);
-      const access_token = data.body['access_token'];
-      const refresh_token = data.body['refresh_token'];
-      const expires_in = data.body['expires_in'];
-  
-      spotifyApi.setAccessToken(access_token);
-      spotifyApi.setRefreshToken(refresh_token);
-  
-      const tokens = JSON.stringify({ access_token, refresh_token, expires_in });
-      fs.writeFileSync('public/accessToken.json', tokens);
-      //res.json({ access_token, refresh_token, expires_in });
-  
-      // Redirige vers la page de succès
-      res.redirect('/access.html');
-    } catch (err) {
-      console.error('Error during token retrieval:', err);
-      res.redirect('/error.html'); // Redirige en cas d'erreur
-    }
+export const accessToken = (async (req: Request, res: Response) => {
+  const code = req.query.code as string;
+  const state = req.query.state as string;
+  const stateUser = (req as CustomRequest).session.state;
+
+  if (state !== stateUser) {
+    console.error('State mismatch:', state, stateUser);
+    res.redirect('/error.html');
+    return;
+  }
+
+  try {
+    const data = await spotifyApi.authorizationCodeGrant(code);
+    const access_token = data.body['access_token'];
+    const refresh_token = data.body['refresh_token'];
+    const expires_in = data.body['expires_in'];
+
+    (req as CustomRequest).session.access_token = access_token;
+    (req as CustomRequest).session.refresh_token = refresh_token;
+
+    res.redirect('/access.html');
+  } catch (err) {
+    console.error('Error during token retrieval:', err);
+    res.redirect('/error.html');
+  }
 });
 
 export const fetchToken = async (req: Request, res: Response) => {
+  spotifyApi.setAccessToken((req as CustomRequest).session.access_token as string);
   try {
-    console.log('Fetching user data...');
-    
     // Obtenir les données utilisateur (information de l'utilisateur connecté)
     const me = await spotifyApi.getMe();
-    
+
     // Obtenir les top tracks
     const topTracksData = await spotifyApi.getMyTopTracks({ limit: 50 });
-    
+    const TopTracksFilter = topTracksData.body.items.filter((item) => item.type === 'track');
     // Récupérer les pistes
     const tracks = topTracksData.body.items;
 
@@ -87,11 +97,12 @@ export const fetchToken = async (req: Request, res: Response) => {
 
     // Obtenir les top artists
     const topArtists = await spotifyApi.getMyTopArtists();
-
+    console.log('track data fetched:', TopTracksFilter);
     // Préparer la réponse avec les données souhaitées
     const result = {
       topAlbum: filteredAlbums,
       user: me.body,
+      topTracks: TopTracksFilter,
       topArtists: topArtists.body.items,
     };
 
@@ -108,14 +119,32 @@ export const topAlbums = async (req: Request, res: Response) => {
     res.redirect('/TopAlbums.html');
   } catch (error) {
     console.error('Error fetching user data:', error);
-   // res.status(500).json({ error: 'Failed to fetch user data' });
+    // res.status(500).json({ error: 'Failed to fetch user data' });
   }
 };
 
+export const topTracks = async (req: Request, res: Response) => {
+  try {
+    res.redirect('/tracks.html');
+  } catch (error) {
+    console.error('Error fetching user data:', error);
+    //res.status(500).json({ error: 'Failed to fetch user data' });
+  }
+};
+
+export const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
+  if (!(req as CustomRequest).session.access_token) {
+    res.redirect('/login.html');
+  } else {
+    next();
+  }
+};
 
 export default {
-    loginController,
-    accessToken,
-   fetchToken,
-    topAlbums
+  loginController,
+  accessToken,
+  fetchToken,
+  topAlbums,
+  topTracks,
+  isAuthenticated
 }

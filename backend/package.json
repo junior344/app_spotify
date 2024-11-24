@@ -11,12 +11,17 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "dotenv": "^16.4.5",
     "ejs": "^3.1.10",
     "express": "^4.21.1",
+    "express-fileupload": "^1.5.1",
+    "express-session": "^1.18.1",
     "spotify-web-api-node": "^5.0.2"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
+    "@types/express-fileupload": "^1.5.1",
+    "@types/express-session": "^1.18.0",
     "@types/spotify-web-api-node": "^5.0.11"
   }
 }

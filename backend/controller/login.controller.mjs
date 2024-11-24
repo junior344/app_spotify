@@ -1,10 +1,11 @@
-import fs from 'fs';
 import SpotifyWebApi from 'spotify-web-api-node';
+import dotenv from 'dotenv';
 import scopes from '../model/model.mjs';
+dotenv.config();
 const spotifyApi = new SpotifyWebApi({
-    clientId: '77a9d98ed0964e99819d30803fa44e75',
-    clientSecret: 'e1e1bbd60a94411eb9e733a807b27c4f',
-    redirectUri: 'http://localhost:3000/callback'
+    clientId: process.env.CLIENT_ID,
+    clientSecret: process.env.CLIENT_SECRET,
+    redirectUri: process.env.REDIRECT_URI,
 });
 export const loginController = (async (req, res) => {
     console.log('Login request received');
@@ -14,10 +15,11 @@ export const loginController = (async (req, res) => {
 });
 export const accessToken = (async (req, res) => {
     const code = req.query.code;
-    const error = req.query.error;
-    if (error) {
-        console.error('Error:', error);
-        res.redirect('/error.html'); // Redirige vers une page d'erreur (optionnel)
+    const state = req.query.state;
+    const stateUser = req.session.state;
+    if (state !== stateUser) {
+        console.error('State mismatch:', state, stateUser);
+        res.redirect('/error.html');
         return;
     }
     try {
@@ -25,26 +27,23 @@ export const accessToken = (async (req, res) => {
         const access_token = data.body['access_token'];
         const refresh_token = data.body['refresh_token'];
         const expires_in = data.body['expires_in'];
-        spotifyApi.setAccessToken(access_token);
-        spotifyApi.setRefreshToken(refresh_token);
-        const tokens = JSON.stringify({ access_token, refresh_token, expires_in });
-        fs.writeFileSync('public/accessToken.json', tokens);
-        //res.json({ access_token, refresh_token, expires_in });
-        // Redirige vers la page de succès
+        req.session.access_token = access_token;
+        req.session.refresh_token = refresh_token;
         res.redirect('/access.html');
     }
     catch (err) {
         console.error('Error during token retrieval:', err);
-        res.redirect('/error.html'); // Redirige en cas d'erreur
+        res.redirect('/error.html');
     }
 });
 export const fetchToken = async (req, res) => {
+    spotifyApi.setAccessToken(req.session.access_token);
     try {
-        console.log('Fetching user data...');
         // Obtenir les données utilisateur (information de l'utilisateur connecté)
         const me = await spotifyApi.getMe();
         // Obtenir les top tracks
         const topTracksData = await spotifyApi.getMyTopTracks({ limit: 50 });
+        const TopTracksFilter = topTracksData.body.items.filter((item) => item.type === 'track');
         // Récupérer les pistes
         const tracks = topTracksData.body.items;
         // Regrouper les pistes par album et calculer le nombre de lectures
@@ -65,10 +64,12 @@ export const fetchToken = async (req, res) => {
         const filteredAlbums = uniqueAlbums.filter(album => album && album.total_tracks >= 10);
         // Obtenir les top artists
         const topArtists = await spotifyApi.getMyTopArtists();
+        console.log('track data fetched:', TopTracksFilter);
         // Préparer la réponse avec les données souhaitées
         const result = {
             topAlbum: filteredAlbums,
             user: me.body,
+            topTracks: TopTracksFilter,
             topArtists: topArtists.body.items,
         };
         // Renvoie les données utilisateur au client
@@ -88,9 +89,28 @@ export const topAlbums = async (req, res) => {
         // res.status(500).json({ error: 'Failed to fetch user data' });
     }
 };
+export const topTracks = async (req, res) => {
+    try {
+        res.redirect('/tracks.html');
+    }
+    catch (error) {
+        console.error('Error fetching user data:', error);
+        //res.status(500).json({ error: 'Failed to fetch user data' });
+    }
+};
+export const isAuthenticated = (req, res, next) => {
+    if (!req.session.access_token) {
+        res.redirect('/login.html');
+    }
+    else {
+        next();
+    }
+};
 export default {
     loginController,
     accessToken,
     fetchToken,
-    topAlbums
+    topAlbums,
+    topTracks,
+    isAuthenticated
 };

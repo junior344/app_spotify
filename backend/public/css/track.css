@@ -59,7 +59,7 @@ body{
         }
   
         /* Cibler uniquement le premier lien dans la navigation */
-        li:nth-child(2) a::after {
+        li:nth-child(3) a::after {
           position: absolute;
           width: 40%;
           height: 10px;
@@ -67,7 +67,8 @@ body{
       }
     }
   }
-.album-container {
+
+  .track-container {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     flex-wrap: wrap;
@@ -75,11 +76,16 @@ body{
     gap: 20px;
   }
   
-  .album {
+  .track {
     width: 100%;
     padding: 10px;
     border-radius: 10px;
     text-align: center;
+    h3{
+        span{
+            color: #1ed760;
+        }
+    }
   }
   
   /* .album img {
@@ -90,7 +96,7 @@ body{
     transition: transform 0.3s ease;
   } */
   
-  .album img:hover {
+  .track img:hover {
     transform: scale(1.05);
   }
   

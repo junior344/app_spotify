@@ -6,21 +6,21 @@ interface Artist {
   images: { url: string }[];
   name: string;
 }
-const fetchTokens = async () => {
-  try {
-    const response = await fetch('/accessToken.json'); // Assurez-vous que cette route est correcte
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data = await response.json();
-    console.log(data); // Assurez-vous que la réponse est bien en JSON
-    return data;
-  } catch (error) {
-    console.error('Error fetching data:', error);
-  }
-};
+// const fetchTokens = async () => {
+//   try {
+//     const response = await fetch('/accessToken.json'); // Assurez-vous que cette route est correcte
+//     if (!response.ok) {
+//       throw new Error(`HTTP error! status: ${response.status}`);
+//     }
+//     const data = await response.json();
+//     console.log(data); // Assurez-vous que la réponse est bien en JSON
+//     return data;
+//   } catch (error) {
+//     console.error('Error fetching data:', error);
+//   }
+// };
 
-const tokens = await fetchTokens();
+// const tokens = await fetchTokens();
 
 
 
@@ -34,8 +34,8 @@ function getMyData() {
       return response.json(); // Parse les données en JSON
     })
     .then((data) => {
-      const {topAlbum, topArtists, user } = data;
-      console.log("topAlbum", topAlbum);
+      const {topAlbum,topTracks, topArtists, user } = data;
+      console.log("topTrack", topTracks);
       const head = document.querySelector('.head');
       if (head){
         head.innerHTML = `
@@ -55,8 +55,11 @@ function getMyData() {
       
       displayArtists(topArtists); // Affiche les artistes
       albumsData = topAlbum; // Stocke les données des albums
-      displayAlbums(currentPage); // Affiche les albums
+      displayAlbums(currentPage,user); // Affiche les albums
       handlePagination(); // Gère la pagination
+      tracksData = topTracks; // Stocke les données des albums
+      displayTracks(currentPage, user); // Affiche les pistes
+      handlePaginationTracks(); // Gère la pagination
     })
     .catch((error) => {
       console.error('Error fetching user data:', error);
@@ -130,6 +133,7 @@ function displayArtists(artists: Artist[]): void {
 
 let currentPage = 1;
 const albumsPerPage = 5;
+let tracksPerPage = 5;
 interface Album {
   artists: string[];
   name: string;
@@ -138,10 +142,23 @@ interface Album {
   release_date: string;
   total_tracks: number;
 }
+interface User {
+  display_name: string;
+  images: { url: string }[];
+  // Ajoutez d'autres propriétés si nécessaire
+}
 
+interface Track {
+  name: string;
+  artists: { name: string }[];
+  album: { name: string; images: { url: string }[] };
+  duration_ms: number;
+  external_urls: { spotify: string };
+}
 let albumsData: Album[] = [];
+let tracksData: Track[] = [];
 
-function displayAlbums(page: number): void {
+function displayAlbums(page: number,user?: User): void {
   const startIndex = (page - 1) * albumsPerPage;
   const endIndex = startIndex + albumsPerPage;
   const albumsToDisplay = albumsData.slice(startIndex, endIndex);
@@ -150,6 +167,21 @@ function displayAlbums(page: number): void {
   // if (albumContainer) {
   //   albumContainer.innerHTML = ''; // Réinitialiser le contenu
   // }
+  const head = document.querySelector('.head');
+  if (head){
+    head.innerHTML = `
+    <h1>Welcome,<span> ${user?.display_name || 'User'} </span> </h1>
+    <div class="links">
+      <nav>
+          <li><a href="/login" class="active">TopArtists</a></li>
+          <li><a href="TopAlbums">TopAlbums</a></li>
+          <li><a href="/Toptracks">TopTracks</a></li>
+          <li><a href="#">Playlists</a></li>
+      </nav>
+      <img src="${user?.images[0]?.url || ''}" alt="Profile Image" width="150">
+    </div>
+    `;
+  }
 
   albumsToDisplay.forEach((album, index) => {
     const albumElement = document.createElement('div');
@@ -191,6 +223,71 @@ function handlePagination() {
     if (currentPage * albumsPerPage < albumsData.length) {
       currentPage++;
       displayAlbums(currentPage);
+    }
+  });
+}
+
+function displayTracks(page: number, user?: User): void {
+  const startIndexTrack = (page - 1) * tracksPerPage;
+  const endIndex = startIndexTrack + tracksPerPage;
+  const tracksToDisplay = tracksData.slice(startIndexTrack, endIndex);
+  const head = document.querySelector('.head');
+  if (head){
+    head.innerHTML = `
+    <h1>Welcome,<span> ${user?.display_name || 'User'} </span> </h1>
+    <div class="links">
+      <nav>
+          <li><a href="/login" class="active">TopArtists</a></li>
+          <li><a href="TopAlbums">TopAlbums</a></li>
+          <li><a href="/Toptracks">TopTracks</a></li>
+          <li><a href="#">Playlists</a></li>
+      </nav>
+      <img src="${user?.images[0]?.url || ''}" alt="Profile Image" width="150">
+    </div>
+    `;
+  }
+  const trackContainer = document.querySelector('.track-container');
+  // if (trackContainer) {
+  //   trackContainer.innerHTML = ''; // Réinitialiser le contenu
+  // }
+
+  tracksToDisplay.forEach((track, index) => {
+    const trackElement = document.createElement('div');
+    trackElement.classList.add('track');
+    trackElement.innerHTML = `
+      <h3> ${startIndexTrack + index + 1}. ${track.name}</h3>
+      <p>Artist: ${track.artists.map(artist => artist.name).join(', ')}</p>
+      <a href="${track.external_urls.spotify}" target="_blank">
+        <img src="${track.album.images[1].url}" alt="${track.name}" />
+      </a>
+      <p>Album: ${track.album.name}</p>
+    `;
+    trackContainer?.appendChild(trackElement);
+  });
+}
+
+function handlePaginationTracks() {
+  const prevButton = document.querySelector('.prev-page');
+  const nextButton = document.querySelector('.next-page');
+  
+  if (prevButton) {
+    (prevButton as HTMLButtonElement).disabled = tracksPerPage === 1;
+  }
+  if (nextButton) {
+    (nextButton as HTMLButtonElement).disabled = tracksPerPage * tracksPerPage >= tracksData.length;
+  }
+
+  prevButton?.addEventListener('click', () => {
+    if (currentPage > 1) {
+      currentPage--;
+      displayAlbums(currentPage);
+    }
+  });
+
+  nextButton?.addEventListener('click', () => {
+    if (tracksPerPage * tracksPerPage < tracksData.length) {
+      tracksPerPage++;
+      displayTracks(tracksPerPage);
     }
   });
 }
