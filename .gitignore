@@ -1,5 +1,6 @@
 .mts
 node_modules
-dist
+.dist
 .vscode
 .env
+config.json

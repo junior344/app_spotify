@@ -4,6 +4,7 @@ import SpotifyWebApi from 'spotify-web-api-node';
 import session from 'express-session';
 import dotenv from 'dotenv';
 import { Request, Response, NextFunction } from 'express';
+import config from '../config.json' assert { type: 'json' };
 import { SessionData } from 'express-session';
 
 interface CustomRequest extends Request {
@@ -20,9 +21,9 @@ import { fileURLToPath } from 'url';
 dotenv.config();
 
 const spotifyApi = new SpotifyWebApi({
-  clientId: process.env.CLIENT_ID,
-  clientSecret: process.env.CLIENT_SECRET,
-  redirectUri: process.env.REDIRECT_URI,
+  clientId: config.CLIENT_ID,
+  clientSecret: config.CLIENT_SECRET,
+  redirectUri: config.REDIRECT_URI,
 });
 interface AlbumPlayCount {
   album: SpotifyApi.AlbumObjectSimplified;
@@ -38,14 +39,17 @@ export const loginController = (async (req: Request, res: Response) => {
 export const accessToken = (async (req: Request, res: Response) => {
   const code = req.query.code as string;
   const state = req.query.state as string;
+  (req as CustomRequest).session.state = state;
   const stateUser = (req as CustomRequest).session.state;
 
+  console.log('Received code:', code);
   if (state !== stateUser) {
     console.error('State mismatch:', state, stateUser);
     res.redirect('/error.html');
     return;
   }
 
+  console.log('Retrieving access token');
   try {
     const data = await spotifyApi.authorizationCodeGrant(code);
     const access_token = data.body['access_token'];
@@ -55,6 +59,8 @@ export const accessToken = (async (req: Request, res: Response) => {
     (req as CustomRequest).session.access_token = access_token;
     (req as CustomRequest).session.refresh_token = refresh_token;
 
+    spotifyApi.setAccessToken(access_token);
+    spotifyApi.setRefreshToken(refresh_token);
     res.redirect('/access.html');
   } catch (err) {
     console.error('Error during token retrieval:', err);
@@ -63,19 +69,21 @@ export const accessToken = (async (req: Request, res: Response) => {
 });
 
 export const fetchToken = async (req: Request, res: Response) => {
-  spotifyApi.setAccessToken((req as CustomRequest).session.access_token as string);
+  // console.log('Fetching token');
+  // spotifyApi.setAccessToken((req as CustomRequest).session.access_token as string);
   try {
+    console.log('Fetching user data');
     // Obtenir les données utilisateur (information de l'utilisateur connecté)
     const me = await spotifyApi.getMe();
 
     // Obtenir les top tracks
     const topTracksData = await spotifyApi.getMyTopTracks({ limit: 50 });
-    const TopTracksFilter = topTracksData.body.items.filter((item) => item.type === 'track');
+    const TopTracksFilter = topTracksData.body.items.filter((item: SpotifyApi.TrackObjectFull) => item.type === 'track');
     // Récupérer les pistes
     const tracks = topTracksData.body.items;
 
     // Regrouper les pistes par album et calculer le nombre de lectures
-    const albumPlayCounts: { [key: string]: AlbumPlayCount } = tracks.reduce((acc, track) => {
+    const albumPlayCounts: { [key: string]: AlbumPlayCount } = tracks.reduce((acc: { [key: string]: AlbumPlayCount }, track: SpotifyApi.TrackObjectFull) => {
       const albumId = track.album.id; // Utiliser l'ID de l'album pour éviter les doublons
 
       if (!acc[albumId]) {
@@ -132,13 +140,24 @@ export const topTracks = async (req: Request, res: Response) => {
   }
 };
 
-export const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
-  if (!(req as CustomRequest).session.access_token) {
-    res.redirect('/login.html');
-  } else {
-    next();
-  }
-};
+// export const isAuthenticated = async (req: Request, res: Response, next: NextFunction) => {
+//   const access_token = (req as CustomRequest).session.access_token;
+
+//   if (!access_token) {
+//     res.redirect('/login');
+//     return;
+//   }
+
+//   try {
+//     spotifyApi.setAccessToken(access_token);
+//     await spotifyApi.getMe(); // Teste si le jeton est valide
+//     next();
+//   } catch (error) {
+//     console.error('Authentication error:', error);
+//     res.redirect('/login');
+//   }
+// };
+
 
 export default {
   loginController,
@@ -146,5 +165,5 @@ export default {
   fetchToken,
   topAlbums,
   topTracks,
-  isAuthenticated
+  //isAuthenticated,
 }

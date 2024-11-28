@@ -5,11 +5,11 @@ const app = express();
 app.get('/login', AppController.loginController);
 // Route pour démarrer la connexion
 // Callback Spotify
-app.get('/callback', AppController.isAuthenticated, AppController.accessToken);
+app.get('/callback', AppController.accessToken);
 // Route pour obtenir le token d'accès
-app.get('/access', AppController.isAuthenticated, AppController.fetchToken);
+app.get('/access', AppController.fetchToken);
 // Route pour obtenir les données du topAlbum
-app.get('/TopAlbums', AppController.isAuthenticated, AppController.topAlbums);
+app.get('/TopAlbums', AppController.topAlbums);
 // Route pour obtenir les données du topTracks
-app.get('/TopTracks', AppController.isAuthenticated, AppController.topTracks);
+app.get('/TopTracks', AppController.topTracks);
 export default app;

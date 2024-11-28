@@ -3,16 +3,15 @@ import AppRoutes from './routes/routes.mjs';
 import SpotifyWebApi from 'spotify-web-api-node';
 import fileUpload from 'express-fileupload';
 import { Request, Response, NextFunction } from 'express';
-import dotenv from 'dotenv';
 import session from 'express-session';
+import config from './config.json' assert { type: 'json' };
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 
-dotenv.config({ path: './.env' });
-dotenv.config();
+console.log('CLIENT_ID:', config.CLIENT_ID);
 
-console.log('SESSION_SECRET:', process.env.SESSION_SECRET);
+console.log('SESSION_SECRET:', config.SESSION_SECRET);
 interface CustomRequest extends Request {
   session: session.Session & Partial<session.SessionData> & {
     access_token?: string;
@@ -28,11 +27,12 @@ app.use(express.json());
 app.use(fileUpload());
 app.use(express.static('public'));
 app.set('trust proxy', 1) // trust first proxy
+
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'default-secret' as string,
+    secret: config.SESSION_SECRET || 'default-secret' as string,
   resave: false,
   saveUninitialized: true,
-  cookie: { secure: process.env.NODE_ENV === 'production' }
+  cookie: { secure: config.NODE_ENV === 'production' }
 }))
 
 
@@ -45,9 +45,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Middleware pour servir les fichiers statiques
 const spotifyApi = new SpotifyWebApi({
-    clientId: process.env.CLIENT_ID,
-    clientSecret: process.env.CLIENT_SECRET,
-    redirectUri: process.env.REDIRECT_URI,
+    clientId: config.CLIENT_ID,
+    clientSecret: config.CLIENT_SECRET,
+    redirectUri: config.REDIRECT_URI,
   });
  
 // Middleware pour s'assurer que l'utilisateur est authentifié
