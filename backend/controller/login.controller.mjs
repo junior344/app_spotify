@@ -1,12 +1,18 @@
 import SpotifyWebApi from 'spotify-web-api-node';
 import dotenv from 'dotenv';
-import config from '../config.json' assert { type: 'json' };
-import scopes from '../model/model.mjs';
+// interface CustomRequest extends Request {
+//   session: session.Session & Partial<session.SessionData> & {
+//     access_token?: string;
+//     refresh_token?: string;
+//     state?: string;
+//   };
+// }
 dotenv.config();
+import scopes from '../model/model.mjs';
 const spotifyApi = new SpotifyWebApi({
-    clientId: config.CLIENT_ID,
-    clientSecret: config.CLIENT_SECRET,
-    redirectUri: config.REDIRECT_URI,
+    clientId: process.env.CLIENT_ID,
+    clientSecret: process.env.CLIENT_SECRET,
+    redirectUri: process.env.REDIRECT_URI,
 });
 export const loginController = (async (req, res) => {
     console.log('Login request received');
@@ -88,7 +94,7 @@ export const fetchToken = async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch user data' });
     }
 };
-export const topAlbums = async (req, res) => {
+export const topAlbums = (async (req, res) => {
     try {
         res.redirect('/TopAlbums.html');
     }
@@ -96,7 +102,7 @@ export const topAlbums = async (req, res) => {
         console.error('Error fetching user data:', error);
         // res.status(500).json({ error: 'Failed to fetch user data' });
     }
-};
+});
 export const topTracks = async (req, res) => {
     try {
         res.redirect('/tracks.html');
@@ -106,26 +112,10 @@ export const topTracks = async (req, res) => {
         //res.status(500).json({ error: 'Failed to fetch user data' });
     }
 };
-// export const isAuthenticated = async (req: Request, res: Response, next: NextFunction) => {
-//   const access_token = (req as CustomRequest).session.access_token;
-//   if (!access_token) {
-//     res.redirect('/login');
-//     return;
-//   }
-//   try {
-//     spotifyApi.setAccessToken(access_token);
-//     await spotifyApi.getMe(); // Teste si le jeton est valide
-//     next();
-//   } catch (error) {
-//     console.error('Authentication error:', error);
-//     res.redirect('/login');
-//   }
-// };
 export default {
     loginController,
     accessToken,
     fetchToken,
     topAlbums,
     topTracks,
-    //isAuthenticated,
 };

@@ -4,26 +4,19 @@ import SpotifyWebApi from 'spotify-web-api-node';
 import session from 'express-session';
 import dotenv from 'dotenv';
 import { Request, Response, NextFunction } from 'express';
-import config from '../config.json' assert { type: 'json' };
 import { SessionData } from 'express-session';
+import  CustomRequest  from '../models/CustomRequest';
+import catchAsync from '../helpers/isAutho'; 
 
-interface CustomRequest extends Request {
-  session: session.Session & Partial<session.SessionData> & {
-    access_token?: string;
-    refresh_token?: string;
-    state?: string;
-  };
-}
 
+dotenv.config();
 import scopes from '../model/model.mjs';
 import { fileURLToPath } from 'url';
 
-dotenv.config();
-
 const spotifyApi = new SpotifyWebApi({
-  clientId: config.CLIENT_ID,
-  clientSecret: config.CLIENT_SECRET,
-  redirectUri: config.REDIRECT_URI,
+  clientId: process.env.CLIENT_ID,
+  clientSecret: process.env.CLIENT_SECRET,
+  redirectUri: process.env.REDIRECT_URI,
 });
 interface AlbumPlayCount {
   album: SpotifyApi.AlbumObjectSimplified;
@@ -122,16 +115,16 @@ export const fetchToken = async (req: Request, res: Response) => {
   }
 };
 
-export const topAlbums = async (req: Request, res: Response) => {
+export const topAlbums =  (async  (req: Request, res: Response) => {
   try {
     res.redirect('/TopAlbums.html');
   } catch (error) {
     console.error('Error fetching user data:', error);
     // res.status(500).json({ error: 'Failed to fetch user data' });
   }
-};
+});
 
-export const topTracks = async (req: Request, res: Response) => {
+export const topTracks =  async  (req: Request, res: Response) => {
   try {
     res.redirect('/tracks.html');
   } catch (error) {
@@ -140,23 +133,7 @@ export const topTracks = async (req: Request, res: Response) => {
   }
 };
 
-// export const isAuthenticated = async (req: Request, res: Response, next: NextFunction) => {
-//   const access_token = (req as CustomRequest).session.access_token;
 
-//   if (!access_token) {
-//     res.redirect('/login');
-//     return;
-//   }
-
-//   try {
-//     spotifyApi.setAccessToken(access_token);
-//     await spotifyApi.getMe(); // Teste si le jeton est valide
-//     next();
-//   } catch (error) {
-//     console.error('Authentication error:', error);
-//     res.redirect('/login');
-//   }
-// };
 
 
 export default {
@@ -165,5 +142,4 @@ export default {
   fetchToken,
   topAlbums,
   topTracks,
-  //isAuthenticated,
 }
